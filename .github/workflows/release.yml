@@ -21,9 +21,19 @@ jobs:
           java-version: "17"
 
       - name: 解码生成 jks
-        run: echo $KEYSTORE_BASE64 | base64 -di > app/keystore.jks
+        run: |
+          # 确保app目录存在（避免路径错误）
+          mkdir -p app
+          # 解码Base64到文件（使用--decode更兼容Ubuntu，避免-di参数问题）
+          echo "$KEYSTORE_BASE64" | base64 --decode > app/keystore.jks
+          # 检查文件是否生成（输出文件大小，确认非空）
+          echo "解码后的密钥库文件大小："
+          ls -lh app/keystore.jks
+          # 验证密钥库是否有效（用Java 17的keytool读取，失败则中断构建）
+          keytool -list -v -keystore app/keystore.jks -storepass "$KEYSTORE_PASSWORD"
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }} # 需传递密码用于验证
 
       - name: 生成apk
         run: chmod +x ./gradlew && ./gradlew assembleRelease
